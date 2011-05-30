@@ -27,17 +27,21 @@ func (fd *FlightData) GetDeparturesFrom(airport string) *list.List {
 
 func PrintDepartures(airport string, data *FlightData) {
 	list := data.Departures[airport]
-	for cursor := list.Front() ; cursor != nil ; cursor = cursor.Next() {
+	for cursor := list.Front(); cursor != nil; cursor = cursor.Next() {
 		f := cursor.Value.(Flight)
 		fmt.Println(f.From, f.To, f.Cost)
 	}
+}
+
+func (f *Flight) Print(out io.Writer) {
+	fmt.Fprintf(out, "%s %s %02d:%02d %02d:%02d $%0.2f", f.From, f.To, f.Depart/60, f.Depart%60, f.Arrive/60, f.Arrive%60, f.Cost)
 }
 
 func MakeFlightSchedule(in io.Reader, flightCount uint) *FlightData {
 	result := new(FlightData)
 
 	result.Flights = make([]*Flight, flightCount)
-	result.Departures = make(map[string] *list.List)
+	result.Departures = make(map[string]*list.List)
 
 	var from, to, departure, arrival string
 	var cost float32
@@ -47,7 +51,7 @@ func MakeFlightSchedule(in io.Reader, flightCount uint) *FlightData {
 		// fmt.Println(from, to, parseTime(departure), parseTime(arrival), cost)
 		flight := Flight{from, to, parseTime(departure), parseTime(arrival), cost}
 		result.Flights[i] = &flight
-		if (result.Departures[from] == nil) {
+		if result.Departures[from] == nil {
 			result.Departures[from] = list.New()
 		}
 		result.Departures[from].PushBack(flight)
@@ -62,4 +66,3 @@ func parseTime(timeStr string) uint {
 	minutes, _ := strconv.Atoui(pieces[1])
 	return hours*uint(60) + minutes
 }
-
