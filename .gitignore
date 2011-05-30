@@ -1,0 +1,5 @@
+*~
+.project
+_obj/*
+bin/*
+pkg/*
