@@ -9,20 +9,13 @@ import (
 	"trips"
 )
 
+func display(t *trips.Trip) {
+	fmt.Printf("%02d:%02d %02d:%02d %0.2f\n", t.BeganAt/60, t.BeganAt%60, t.CurrentTime/60, t.CurrentTime%60, t.TotalCost)
+}
+
 func main() {
-	/*
-		defer func() {
-			r := recover()
-			if r != nil {
-				fmt.Println(r)
-			}
-		}()
-	*/
-
-	dir, err := os.Getwd()
-	fmt.Println(dir)
-
 	filename := "../../input/sample-input.txt"
+	filename = "../../input/input.txt"
 	// figure out what to do with error
 	f, err := os.Open(filename, os.O_RDONLY, uint32(0))
 	if err != nil {
@@ -35,26 +28,24 @@ func main() {
 		fmt.Println(err)
 	}
 
-	fmt.Println(testCases)
+	// fmt.Println(testCases)
 
 	for i := uint(0); i < testCases; i++ {
 		var flightCount uint
 		fmt.Fscan(f, &flightCount)
-		fmt.Println(flightCount)
+		// fmt.Println(flightCount)
 
-		flightData := flights.MakeFlightData2(f, flightCount)
+		flightSchedule := flights.MakeFlightSchedule(f, flightCount)
 		// flights.PrintDepartures("A", flightData)
 
-		flightHeap := trips.NewTripHeap("A", "Z", trips.LessCost)
-		for !flightHeap.Done() {
-			flightHeap.Process(flightData)
-		}
-
-		if flightHeap.Failed() {
-			fmt.Println("could not find trip from A to Z")
-		} else {
-			trip := flightHeap.At(0).(*trips.Trip)
-			fmt.Println(trip.TotalTime, trip.TotalCost)
-		}
+		cheap := trips.FindOptimal("A", "Z", flightSchedule, trips.LessCost)
+		short := trips.FindOptimal("A", "Z", flightSchedule, trips.LessTime)
+		
+		display(cheap)
+		display(short)
+		
+		fmt.Println()
 	}
+
+	f.Close()
 }

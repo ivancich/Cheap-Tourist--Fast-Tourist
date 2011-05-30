@@ -2,6 +2,7 @@ package trips
 
 import (
 	"container/vector"
+	"container/heap"
 	"flights"
 	"fmt"
 )
@@ -17,7 +18,6 @@ type Trip struct {
 }
 
 func (t *Trip) Done() bool {
-	fmt.Println("comparing " + t.CurrentAirport + " and " + t.To)
 	return t.CurrentAirport == t.To
 }
 
@@ -34,23 +34,28 @@ type TripHeap struct {
 	less func(x, y interface{}) bool
 }
 
-func NewTripHeap(from, to string, lessFunc func (x, y interface{}) bool) *TripHeap {
+func (h *TripHeap) Less(i, j int) bool {
+	return h.less(h.At(i), h.At(j))
+}
+
+func NewTripHeap(from, to string, lessFunc func(x, y interface{}) bool) *TripHeap {
 	result := new(TripHeap)
 	result.less = lessFunc
 	result.Push(NewTrip(from, to))
+	heap.Init(result)
 	return result
 }
 
 func (h *TripHeap) Process(flightData *flights.FlightData) {
-	top := h.Pop().(*Trip)
+	top := heap.Pop(h).(*Trip)
 	departures := flightData.Departures[top.CurrentAirport]
 	if departures == nil {
 		// panic("we got a nil departures for " + top.CurrentAirport + " somehow")
 		return
 	}
-	for flightElem := departures.Front() ; flightElem != nil ; flightElem = flightElem.Next() {
+	for flightElem := departures.Front(); flightElem != nil; flightElem = flightElem.Next() {
 		flight := flightElem.Value.(flights.Flight)
-		if (flight.Depart >= top.CurrentTime) {
+		if flight.Depart >= top.CurrentTime {
 			t := Trip{top.From, top.To, 0, flight.To, flight.Arrive, 0, top.TotalCost + flight.Cost}
 			if top.TotalTime == 0 {
 				t.BeganAt = flight.Depart
@@ -59,13 +64,21 @@ func (h *TripHeap) Process(flightData *flights.FlightData) {
 				t.BeganAt = top.BeganAt
 				t.TotalTime = top.TotalTime + (flight.Arrive - top.CurrentTime)
 			}
-			h.Push(&t)
+			heap.Push(h, &t)
 		}
 	}
 }
 
-func (h *TripHeap) Less(i, j int) bool {
-	return h.less(h.At(i), h.At(j))
+func FindOptimal(from, to string, flightSchedule *flights.FlightData, lessFunc func(x, y interface{}) bool) *Trip {
+	h := NewTripHeap(from, to, lessFunc)
+	for !h.Done() {
+		h.Process(flightSchedule)
+	}
+
+	if h.Failed() {
+		return nil
+	}
+	return heap.Pop(h).(*Trip)
 }
 
 func (h *TripHeap) Done() bool {
@@ -77,8 +90,8 @@ func (h *TripHeap) Failed() bool {
 }
 
 func LessCost(x, y interface{}) bool {
-	t1 := x.(Trip)
-	t2 := y.(Trip)
+	t1 := x.(*Trip)
+	t2 := y.(*Trip)
 	switch {
 	case t1.TotalCost < t2.TotalCost:
 		return true
@@ -89,8 +102,8 @@ func LessCost(x, y interface{}) bool {
 }
 
 func LessTime(x, y interface{}) bool {
-	t1 := x.(Trip)
-	t2 := y.(Trip)
+	t1 := x.(*Trip)
+	t2 := y.(*Trip)
 	switch {
 	case t1.TotalTime < t2.TotalTime:
 		return true
@@ -98,4 +111,11 @@ func LessTime(x, y interface{}) bool {
 		return t1.TotalCost < t2.TotalCost
 	}
 	return false
+}
+
+func (h *TripHeap) Print() {
+	for i := 0; i < h.Len(); i++ {
+		t := h.At(i).(*Trip)
+		fmt.Println(i, t.From, t.To, t.CurrentAirport, t.CurrentTime, t.TotalTime, t.TotalCost)
+	}
 }

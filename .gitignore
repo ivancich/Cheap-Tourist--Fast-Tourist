@@ -1,5 +1,6 @@
 *~
 .project
-_obj/*
+src/pkg/*/_obj/
+src/cmd/_obj/
 bin/*
 pkg/*

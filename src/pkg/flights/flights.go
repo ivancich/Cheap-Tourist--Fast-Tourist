@@ -1,7 +1,6 @@
 package flights
 
 import (
-	"scanner"
 	"fmt"
 	"strconv"
 	"io"
@@ -22,43 +21,8 @@ type FlightData struct {
 	Departures map[string]*list.List
 }
 
-func scanTime(s *scanner.Scanner) uint {
-	s.Scan()
-	hour, _ := strconv.Atoui(s.TokenText())
-	s.Scan()
-	s.Scan()
-	minute, _ := strconv.Atoui(s.TokenText())
-	return hour*uint(60) + minute
-}
-
-
-func MakeFlightData(s *scanner.Scanner, flightCount uint) *FlightData {
-	result := new(FlightData)
-
-	oldMode := s.Mode
-	s.Mode = scanner.ScanInts | scanner.ScanStrings | scanner.ScanFloats
-
-	for i := uint(0); i < flightCount; i++ {
-		s.Scan()
-		from := s.TokenText()
-		s.Scan()
-		to := s.TokenText()
-		departure := scanTime(s)
-		arrival := scanTime(s)
-		_ = s.Scan()
-		cost, _ := strconv.Atof32(s.TokenText())
-		fmt.Println(from, to, departure, arrival, cost)
-	}
-
-	s.Mode = oldMode
-	return result
-}
-
-func parseTime(timeStr string) uint {
-	pieces := strings.Split(timeStr, ":", 2)
-	hours, _ := strconv.Atoui(pieces[0])
-	minutes, _ := strconv.Atoui(pieces[1])
-	return hours*uint(60) + minutes
+func (fd *FlightData) GetDeparturesFrom(airport string) *list.List {
+	return fd.Departures[airport]
 }
 
 func PrintDepartures(airport string, data *FlightData) {
@@ -69,7 +33,7 @@ func PrintDepartures(airport string, data *FlightData) {
 	}
 }
 
-func MakeFlightData2(in io.Reader, flightCount uint) *FlightData {
+func MakeFlightSchedule(in io.Reader, flightCount uint) *FlightData {
 	result := new(FlightData)
 
 	result.Flights = make([]*Flight, flightCount)
@@ -80,7 +44,7 @@ func MakeFlightData2(in io.Reader, flightCount uint) *FlightData {
 
 	for i := uint(0); i < flightCount; i++ {
 		fmt.Fscanln(in, &from, &to, &departure, &arrival, &cost)
-		fmt.Println(from, to, parseTime(departure), parseTime(arrival), cost)
+		// fmt.Println(from, to, parseTime(departure), parseTime(arrival), cost)
 		flight := Flight{from, to, parseTime(departure), parseTime(arrival), cost}
 		result.Flights[i] = &flight
 		if (result.Departures[from] == nil) {
@@ -91,3 +55,11 @@ func MakeFlightData2(in io.Reader, flightCount uint) *FlightData {
 
 	return result
 }
+
+func parseTime(timeStr string) uint {
+	pieces := strings.Split(timeStr, ":", 2)
+	hours, _ := strconv.Atoui(pieces[0])
+	minutes, _ := strconv.Atoui(pieces[1])
+	return hours*uint(60) + minutes
+}
+
