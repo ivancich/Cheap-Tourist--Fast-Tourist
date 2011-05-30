@@ -2,50 +2,48 @@ package main
 
 import (
 	"os"
-	// "scanner"
-	// "strconv"
 	"fmt"
 	"flights"
 	"trips"
 )
 
-func display(t *trips.Trip) {
+func output(t *trips.Trip) {
 	fmt.Printf("%02d:%02d %02d:%02d %0.2f\n", t.BeganAt/60, t.BeganAt%60, t.CurrentTime/60, t.CurrentTime%60, t.TotalCost)
 }
 
 func main() {
 	filename := "../../input/sample-input.txt"
 	filename = "../../input/input.txt"
-	// figure out what to do with error
-	f, err := os.Open(filename, os.O_RDONLY, uint32(0))
+
+	var err os.Error
+
+	in, err := os.Open(filename, os.O_RDONLY, uint32(0))
 	if err != nil {
-		fmt.Println(err.String())
+		panic(err.String())
 	}
+	defer func() {
+		in.Close()
+	}()
 
 	var testCases uint
-	_, err = fmt.Fscan(f, &testCases)
-	if err != nil {
-		fmt.Println(err)
+	if _, err = fmt.Fscan(in, &testCases); err != nil {
+		panic(err)
 	}
-
-	// fmt.Println(testCases)
 
 	for i := uint(0); i < testCases; i++ {
 		var flightCount uint
-		fmt.Fscan(f, &flightCount)
-		// fmt.Println(flightCount)
+		if _, err = fmt.Fscan(in, &flightCount); err != nil {
+			panic(err)
+		}
 
-		flightSchedule := flights.MakeFlightSchedule(f, flightCount)
-		// flights.PrintDepartures("A", flightData)
+		flightSchedule := flights.MakeFlightSchedule(in, flightCount)
 
 		cheap := trips.FindOptimal("A", "Z", flightSchedule, trips.LessCost)
-		short := trips.FindOptimal("A", "Z", flightSchedule, trips.LessTime)
-		
-		display(cheap)
-		display(short)
-		
-		fmt.Println()
-	}
+		output(cheap)
 
-	f.Close()
+		short := trips.FindOptimal("A", "Z", flightSchedule, trips.LessTime)
+		output(short)
+
+		fmt.Println() // blank after each test case
+	}
 }
