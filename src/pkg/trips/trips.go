@@ -5,6 +5,7 @@ import (
 	"container/heap"
 	"flights"
 	"fmt"
+	"io"
 )
 
 type Trip struct {
@@ -15,10 +16,20 @@ type Trip struct {
 	CurrentTime    uint
 	TotalTime      uint
 	TotalCost      float32
+	Flights        *vector.Vector
 }
 
 func (t *Trip) Done() bool {
 	return t.CurrentAirport == t.To
+}
+
+func (t *Trip) Print(out io.Writer) {
+	t.Flights.Do(func(v interface{}) {
+		f := v.(*flights.Flight)
+		fmt.Fprint(out, "-- ")
+		f.Print(out)
+		fmt.Fprintln(out)
+	})
 }
 
 func NewTrip(from, to string) *Trip {
@@ -26,12 +37,14 @@ func NewTrip(from, to string) *Trip {
 	result.From = from
 	result.To = to
 	result.CurrentAirport = from
+	result.Flights = new(vector.Vector)
 	return result
 }
 
 type TripHeap struct {
 	vector.Vector
-	less func(x, y interface{}) bool
+	seenSet map[string]bool
+	less    func(x, y interface{}) bool
 }
 
 func (h *TripHeap) Less(i, j int) bool {
@@ -40,6 +53,7 @@ func (h *TripHeap) Less(i, j int) bool {
 
 func NewTripHeap(from, to string, lessFunc func(x, y interface{}) bool) *TripHeap {
 	result := new(TripHeap)
+	result.seenSet = make(map[string]bool)
 	result.less = lessFunc
 	result.Push(NewTrip(from, to))
 	heap.Init(result)
@@ -48,6 +62,7 @@ func NewTripHeap(from, to string, lessFunc func(x, y interface{}) bool) *TripHea
 
 func (h *TripHeap) Process(flightData *flights.FlightData) {
 	top := heap.Pop(h).(*Trip)
+	h.seenSet[top.CurrentAirport] = true
 	departures := flightData.Departures[top.CurrentAirport]
 	if departures == nil {
 		// panic("we got a nil departures for " + top.CurrentAirport + " somehow")
@@ -55,8 +70,10 @@ func (h *TripHeap) Process(flightData *flights.FlightData) {
 	}
 	for flightElem := departures.Front(); flightElem != nil; flightElem = flightElem.Next() {
 		flight := flightElem.Value.(flights.Flight)
-		if flight.Depart >= top.CurrentTime {
-			t := Trip{top.From, top.To, 0, flight.To, flight.Arrive, 0, top.TotalCost + flight.Cost}
+		if flight.Depart >= top.CurrentTime && !h.seenSet[flight.To] {
+			newFlights := top.Flights.Copy()
+			newFlights.Push(&flight)
+			t := Trip{top.From, top.To, 0, flight.To, flight.Arrive, 0, top.TotalCost + flight.Cost, &newFlights}
 			if top.TotalTime == 0 {
 				t.BeganAt = flight.Depart
 				t.TotalTime = flight.Arrive - flight.Depart
@@ -78,7 +95,9 @@ func FindOptimal(from, to string, flightSchedule *flights.FlightData, lessFunc f
 	if h.Failed() {
 		return nil
 	}
-	return heap.Pop(h).(*Trip)
+	
+	trip := heap.Pop(h).(*Trip)
+	return trip
 }
 
 func (h *TripHeap) Done() bool {
