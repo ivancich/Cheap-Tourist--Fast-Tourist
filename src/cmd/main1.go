@@ -7,6 +7,14 @@ import (
 	"trips"
 )
 
+const (
+	printItinerary = true
+)
+
+var (
+	evaluationFunctions = []func(i, j interface{}) bool{trips.LessCost, trips.LessTime}
+)
+
 func output(t *trips.Trip) {
 	fmt.Printf("%02d:%02d %02d:%02d %0.2f\n", t.BeganAt/60, t.BeganAt%60, t.CurrentTime/60, t.CurrentTime%60, t.TotalCost)
 }
@@ -21,9 +29,7 @@ func main() {
 	if err != nil {
 		panic(err.String())
 	}
-	defer func() {
-		in.Close()
-	}()
+	defer in.Close()
 
 	var testCases uint
 	if _, err = fmt.Fscan(in, &testCases); err != nil {
@@ -38,12 +44,15 @@ func main() {
 
 		flightSchedule := flights.MakeFlightSchedule(in, flightCount)
 
-		cheap := trips.FindOptimal("A", "Z", flightSchedule, trips.LessCost)
-		output(cheap)
+		for j := 0; j < len(evaluationFunctions); j++ {
+			evalFunc := evaluationFunctions[j]
+			trip := trips.FindOptimal("A", "Z", flightSchedule, evalFunc)
+			output(trip)
+			if printItinerary {
+				trip.Print(os.Stdout)
+			}
+		}
 
-		short := trips.FindOptimal("A", "Z", flightSchedule, trips.LessTime)
-		output(short)
-
-		fmt.Println() // blank after each test case
+		fmt.Println()
 	}
 }
